@@ -417,7 +417,16 @@ sub handle_choice {
         # Otherwise, we assume that the entry is a hostname and that we want
         # to ssh into it...
         #
-        screenopen($hostinfo{$id}{ssh}, $hostinfo{$id}{ssh});
+        screenopen(
+            
+            defined $hostinfo{$id}{title}
+            &&      $hostinfo{$id}{title}
+                  ? $hostinfo{$id}{title}
+                  : $hostinfo{$id}{ssh},
+            
+            $hostinfo{$id}{ssh}
+
+        );
 
     }
 
@@ -612,11 +621,16 @@ sub load_hosts {
     #
     for ( keys %hinfo ) {
 
+        $hinfo{$_}{title} = $hinfo{$_}{hostname};
+
         $hinfo{$_}{menuitem} = ' ' x 2 . '<dim>' . $hinfo{$_}{hostname} . '</dim>';
 
         my $len = length $hinfo{$_}{hostname};
 
         if ( defined $hinfo{$_}{user} ) {
+
+            $hinfo{$_}{title} .= ' (' . $hinfo{$_}{user} . ')';
+
             $hinfo{$_}{menuitem} .= ' (<underline>' . $hinfo{$_}{user} . '</underline>)';
             $len += length $hinfo{$_}{user};
             $len += 2; # parens and space
@@ -634,6 +648,9 @@ sub load_hosts {
         ddump( 'pad_calc_pad',  $pad )       if $opts->{debug};
 
         if ( defined $hinfo{$_}{comment} ) {
+
+            $hinfo{$_}{title} .= ' # ' . $hinfo{$_}{comment};
+
             $hinfo{$_}{menuitem} .= ' ' x $pad;
             $hinfo{$_}{menuitem} .= '<bold># ' . $hinfo{$_}{comment} . '</bold>';
         }
