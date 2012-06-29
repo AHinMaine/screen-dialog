@@ -1,0 +1,67 @@
+# This is the main list of hosts read by the s-dialog
+# script.  Order is preserved so if you want to sort these
+# entries differently, you to do it manually here.
+#
+# The s-dialog script is fairly flexible in what format it
+# will parse.
+#
+#   plain hostsname:
+#       server01.example.com
+#
+#   hostname with username:
+#       user@server01.example.com
+#
+#   hostname with username and a tag comment:
+#       user@server01.example.com # mail server
+#
+#   hostname and port with username and a tag comment:
+#       user@servertest01.example.com:2222 # lab server
+#
+#
+# However, entry names are first checked in dispatch table
+# near the top of the s-dialog script.  If there's a match,
+# instead of assuming that this is a host and opening an ssh
+# window, it will execute the code reference found in the
+# dispatch table.  The first 10 of these items are examples
+# that will use the dispatch table.
+#
+shell
+corelist
+dhcpv6
+zypper-shell
+htop
+root
+man
+perldoc
+htoproot
+toproot
+server01.example.com
+admin@server01.example.com
+server02.example.com # mail server
+server04.example.com # web server
+server05.example.com # db server
+server06.example.com # ldap server
+server07.example.com
+server08.example.com # mail server
+server09.example.com # db server
+server10.example.com # ldap server
+server11.example.com # web server
+server12.example.com # web server
+router01.example.com
+router02.example.com
+admin@ax1.example.com # a10
+admin@ax2.example.com # a10
+storage01.example.com # netapp
+storage02.example.com # netapp
+root@10.24.1.101 # lab web server
+root@10.24.1.201 # lab db server
+user@servertest.example.com:2222
+vim
+editself
+editcorelist
+editdhcpv6list
+editppslist
+editsunlist
+editknownhosts
+editsshconfig
+edit

@@ -1,0 +1,20 @@
+# The .hosts.coreservers file is a list of the most common
+# windows that you want screen to create when you choose it
+# from the menu.  There is a short delay between each spawn
+# because if you're using common nfs mounted home
+# directories on your hosts, it's VERY unfriendly to the
+# xauth ~/.Xauthority file to have so many sessions logging
+# in at the same time.
+#
+server01.example.com
+server01.example.com
+server01.example.com
+server01.example.com
+root@10.24.1.101
+root@10.24.1.101
+root@10.24.1.101
+root@10.24.1.101
+user@example.com:2222
+user@example.com:2222
+server05.example.com
+server05.example.com
