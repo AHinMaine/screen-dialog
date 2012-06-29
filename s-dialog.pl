@@ -72,6 +72,15 @@ if ( $debug ) {
         or die "Error opening debuglog for writing: $!\n";
 }
 
+our $hostsfile =
+    defined $opts->{hostsfile}
+    &&      $opts->{hostsfile}
+    &&   -e $opts->{hostsfile} && -r _
+          ? $opts->{hostsfile}
+          : -e $ENV{HOME} . '.hosts' && -r _
+             ? $ENV{HOME} . '.hosts'
+             : die "Error: can't find a readable hosts file!\n";
+
 # }}}
 
 # {{{ dispatch table
@@ -88,14 +97,18 @@ if ( $debug ) {
 # here.
 
 my $do = {
-           edit               =>    sub { editfile( $opts->{hostsfile} )                    },
+           edit               =>    sub { editfile( $hostsfile )                            },
            editknownhosts     =>    sub { editfile("${HOME}/.ssh/known_hosts")              },
            editsshconfig      =>    sub { editfile("${HOME}/.ssh/config")                   },
            editcorelist       =>    sub { editfile("${HOME}/.hosts.coreservers")            },
 
            shell              =>    sub { screenlocal('shell')                              },
+           root               =>    sub { screenlocal('root', 'sudo -s')                    },
            'zypper-shell'     =>    sub { screenlocal('zypper', 'sudo zypper shell')        },
            htop               =>    sub { screenlocal('htop', 'htop')                       },
+           htoproot           =>    sub { screenlocal('htop', 'sudo htop')                  },
+           toproot            =>    sub { screenlocal('top',  'sudo top')                   },
+           notes              =>    sub { screenlocal('notes-gpg', 'notes.sh' )             },
 
            man                =>    sub { manpage()                                         },
            perldoc            =>    sub { perldoc()                                         },
@@ -107,6 +120,8 @@ my $do = {
 
            telnetviassh       =>    sub { telnetviassh()                                    },
            telnet             =>    sub { telnet()                                          },
+           storage01          =>    sub { telnetviassh( 'storage01', 'storage01' )          },
+           storage02          =>    sub { telnetviassh( 'storage02', 'storage02' )          },
 
            remotecmd          =>    sub { remotecmd()                                       },
 
@@ -118,7 +133,7 @@ ddump( 'dispatch_table', $do ) if $debug;
 
 # {{{ gather host info and create menu hash
 
-our %hostinfo = load_hosts({ hosts => $opts->{hostsfile} });
+our %hostinfo = load_hosts({ hosts => $hostsfile });
 
 
 # booooo...  fix this you lazy turd.
@@ -150,7 +165,7 @@ my @menu = (
     {   -label   => 'File',
         -submenu => [
 
-                        { -label => 'Edit config       ',    -value => sub { editfile($opts->{hostsfile});           $cui->layout(); } },
+                        { -label => 'Edit config       ',    -value => sub { editfile($hostsfile);                   $cui->layout(); } },
                         { -label => 'Edit known_hosts  ',    -value => sub { editfile("${HOME}/.ssh/known_hosts");   $cui->layout(); } },
                         { -label => 'Edit ssh config   ',    -value => sub { editfile("${HOME}/.ssh/config");        $cui->layout(); } },
                         { -label => 'Edit core list    ',    -value => sub { editfile("${HOME}/.hosts.coreservers"); $cui->layout(); } },
@@ -249,7 +264,7 @@ $cui->set_binding( sub { $inc_filter = '';  load_menuitems(); $cui->layout() }, 
 $cui->set_binding(
     sub {
         $inc_filter = '';
-        %hostinfo = load_hosts({ hosts => $opts->{hostsfile} });
+        %hostinfo = load_hosts({ hosts => $hostsfile });
         load_menuitems();
         $cui->layout();
     },
@@ -511,7 +526,7 @@ sub load_hosts {
 
     my $args = shift;
 
-    my $hostsfile =
+    my $hosts =
         defined $args->{hosts}
         &&      $args->{hosts}
         &&   -r $args->{hosts} && -s _
@@ -519,9 +534,6 @@ sub load_hosts {
               : die "hosts file not found, empty, or not readable.\n"
               ;
 
-
-    my $hostsfh = FileHandle->new($hostsfile, 'r')
-        or die "Error opening hosts file: $!\n";
 
     my %hinfo;
 
@@ -531,8 +543,10 @@ sub load_hosts {
     # of the file.
     #
     my $key = 1;
-
     my $maxwidth;
+
+    my $hostsfh = FileHandle->new($hosts, 'r')
+        or die "Error opening hosts file: $!\n";
 
     while ( <$hostsfh> ) {
 
