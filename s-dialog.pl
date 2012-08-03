@@ -133,7 +133,10 @@ ddump( 'dispatch_table', $do ) if $debug;
 
 # {{{ gather host info and create menu hash
 
-our %hostinfo = load_hosts({ hosts => $hostsfile });
+our %hostinfo;
+our %sshindex;
+
+load_hosts({ hosts => $hostsfile });
 
 
 # booooo...  fix this you lazy turd.
@@ -257,6 +260,7 @@ $cui->set_binding( sub { incremental_filter('7') }, '7' );
 $cui->set_binding( sub { incremental_filter('8') }, '8' );
 $cui->set_binding( sub { incremental_filter('9') }, '9' );
 $cui->set_binding( sub { incremental_filter('-') }, '-' );
+$cui->set_binding( sub { incremental_filter('.') }, '.' );
 
 $cui->set_binding( sub { $menu->focus() }, "\cX", KEY_F(10), KEY_F(9) );
 $cui->set_binding( sub { $inc_filter = '';  load_menuitems(); $cui->layout() }, "\cL" );
@@ -535,9 +539,6 @@ sub load_hosts {
               ;
 
 
-    my %hinfo;
-
-
     # We're going to build the hash of host info using a
     # numeric key so that we can preserve the current order
     # of the file.
@@ -562,6 +563,8 @@ sub load_hosts {
         my $port;
         my $comment;
 
+        my $listmatch = $_;
+
         # if found, pull out the username
         #
         if (m/^(.*?)[@](.*)$/s) {
@@ -582,6 +585,7 @@ sub load_hosts {
         if (m/^.*?#\s*(.*)$/s) {
             $comment = $1;
             s/\s*#\s*(.*)$//s;
+            $listmatch =~ s/\s*#\s*(.*)$//s;
         }
 
         # anything left will be the hostname
@@ -590,12 +594,12 @@ sub load_hosts {
         s/\s+$//;
         $hostname = $_;
 
-        $hinfo{$key}{hostname} = $hostname;
+        $hostinfo{$key}{hostname} = $hostname;
 
         my $len = length $hostname;
 
         if ($username) {
-            $hinfo{$key}{user} = $username;
+            $hostinfo{$key}{user} = $username;
             $len += length $username;
             $len += 3; # parens and space
         }
@@ -606,21 +610,23 @@ sub load_hosts {
         $maxwidth = max( $maxwidth, $len );
 
         if ($comment) {
-            $hinfo{$key}{comment} = $comment;
+            $hostinfo{$key}{comment} = $comment;
         }
 
-        $hinfo{$key}{ssh} =
+        $hostinfo{$key}{ssh} =
             defined $port
             &&      $port
                 ? " -p ${port} "
                 : ''
                 ;
 
-        $hinfo{$key}{ssh} .=
+        $hostinfo{$key}{ssh} .=
                   $username
                 ? $username . '@' . $hostname
                 : $hostname
                 ;
+
+        $sshindex{$listmatch} = $key;
 
         $key++;
 
@@ -633,20 +639,20 @@ sub load_hosts {
     # Now iterate the hostinfo once again to pretty up the the list for
     # display in the actual curses menu.
     #
-    for ( keys %hinfo ) {
+    for ( keys %hostinfo ) {
 
-        $hinfo{$_}{title} = $hinfo{$_}{hostname};
+        $hostinfo{$_}{title} = $hostinfo{$_}{hostname};
 
-        $hinfo{$_}{menuitem} = ' ' x 2 . '<dim>' . $hinfo{$_}{hostname} . '</dim>';
+        $hostinfo{$_}{menuitem} = ' ' x 2 . '<dim>' . $hostinfo{$_}{hostname} . '</dim>';
 
-        my $len = length $hinfo{$_}{hostname};
+        my $len = length $hostinfo{$_}{hostname};
 
-        if ( defined $hinfo{$_}{user} ) {
+        if ( defined $hostinfo{$_}{user} ) {
 
-            $hinfo{$_}{title} .= ' (' . $hinfo{$_}{user} . ')';
+            $hostinfo{$_}{title} .= ' (' . $hostinfo{$_}{user} . ')';
 
-            $hinfo{$_}{menuitem} .= ' (<underline>' . $hinfo{$_}{user} . '</underline>)';
-            $len += length $hinfo{$_}{user};
+            $hostinfo{$_}{menuitem} .= ' (<underline>' . $hostinfo{$_}{user} . '</underline>)';
+            $len += length $hostinfo{$_}{user};
             $len += 2; # parens and space
             $len++;
         }
@@ -657,27 +663,27 @@ sub load_hosts {
                 : 2
                 ;
 
-        ddump( 'pad_calc_item', $hinfo{$_} ) if $opts->{debug};
+        ddump( 'pad_calc_item', $hostinfo{$_} ) if $opts->{debug};
         ddump( 'pad_calc_len',  $len )       if $opts->{debug};
         ddump( 'pad_calc_pad',  $pad )       if $opts->{debug};
 
-        if ( defined $hinfo{$_}{comment} ) {
+        if ( defined $hostinfo{$_}{comment} ) {
 
-            $hinfo{$_}{title} .= ' # ' . $hinfo{$_}{comment};
+            $hostinfo{$_}{title} .= ' # ' . $hostinfo{$_}{comment};
 
-            $hinfo{$_}{menuitem} .= ' ' x $pad;
-            $hinfo{$_}{menuitem} .= '<bold># ' . $hinfo{$_}{comment} . '</bold>';
+            $hostinfo{$_}{menuitem} .= ' ' x $pad;
+            $hostinfo{$_}{menuitem} .= '<bold># ' . $hostinfo{$_}{comment} . '</bold>';
         }
 
 
     }
 
 
-    ddump( 'load_hosts', %hinfo ) if $debug;
+    ddump( 'load_hosts', \%hostinfo ) if $debug;
+    ddump( 'sshindex',   \%sshindex ) if $debug;
 
-    ddump( 'load_hosts_test', $hinfo{220} ) if $opts->{debug};
+    ddump( 'load_hosts_test_220', $hostinfo{220} ) if $opts->{debug};
 
-    return wantarray ? %hinfo : \%hinfo;
 
 } # }}}
 
@@ -991,11 +997,34 @@ sub screenopenlist {
         next if m/^\s*#/;
         next if m/\s+/;
 
+
+        if ( defined $sshindex{$_} && $sshindex{$_} ) {
+
+            my $key = $sshindex{$_};
+
+            # Otherwise, we assume that the entry is a
+            # hostname and that we want to ssh into it...
+            #
+            screenopen(
+                
+                defined $hostinfo{$key}{hostname}
+                &&      $hostinfo{$key}{hostname}
+                      ? $hostinfo{$key}{hostname}
+                      : $hostinfo{$key}{ssh},
+                
+                $hostinfo{$key}{ssh}
+    
+            );
+
+
+        } else {
+
         my $cli = $opts->{screen} . " -t '${_}' " . $opts->{ssh} . " ${_}";
+            ddump( 'screenopenlist_cli', $cli ) if $opts->{debug};
+            system($cli);
 
-        ddump( 'screenopenlist_cli', $cli ) if $opts->{debug};
+        }
 
-        system($cli);
 
         # Keep from spawning too fast...
         #
