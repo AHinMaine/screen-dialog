@@ -21,6 +21,7 @@ use FileHandle;
 
 use Curses;
 use Curses::UI;
+use Curses::UI::Common;
 
 use YAML::Any qw(LoadFile DumpFile);
 
@@ -221,7 +222,9 @@ $win1->add(
     -width => -1,
 );
 
-# Bind the alphabet to automatically do incr searching...
+# {{{ key bindings
+
+# {{{ Bind keys to automatically do incr searching...
 #
 $cui->set_binding( sub { incremental_filter('a') }, 'a' );
 $cui->set_binding( sub { incremental_filter('b') }, 'b' );
@@ -262,13 +265,17 @@ $cui->set_binding( sub { incremental_filter('9') }, '9' );
 $cui->set_binding( sub { incremental_filter('-') }, '-' );
 $cui->set_binding( sub { incremental_filter('.') }, '.' );
 
+$cui->set_binding( sub { incremental_filter('KEY_BACKSPACE') }, KEY_BACKSPACE );
+
+# }}}
+
 $cui->set_binding( sub { $menu->focus() }, "\cX", KEY_F(10), KEY_F(9) );
 $cui->set_binding( sub { $inc_filter = '';  load_menuitems(); $cui->layout() }, "\cL" );
 
 $cui->set_binding(
     sub {
         $inc_filter = '';
-        %hostinfo = load_hosts({ hosts => $hostsfile });
+        load_hosts({ hosts => $hostsfile });
         load_menuitems();
         $cui->layout();
     },
@@ -278,10 +285,15 @@ $cui->set_binding(
 $listbox->set_binding( \&exit_dialog, "\cC", "\cQ" );
 $listbox->set_routine( 'option-select',  \&handle_choice );
 
+$listbox->set_routine( 'space-select', \&space_handler );
+$listbox->set_binding( 'space-select', CUI_SPACE );
+
 #$listbox->set_routine( 'search-forward', \&search_forward);
 #$listbox->set_binding( 'search-forward'  , '/' );
 
 $listbox->set_binding( \&filter_dialog, "\cF", '/' );
+
+# }}}
 
 # }}}
 
@@ -418,7 +430,6 @@ sub handle_choice {
     #
     if ( defined $do->{$hostinfo{$id}{ssh}} ) {
 
-        ddump( 'handle_choice_id',                       $id )                      if $opts->{debug};
         ddump( 'matched dispatched table with hostinfo', $hostinfo{$id}{hostname} ) if $opts->{debug};
         ddump( 'Matched dispatch table with menuitem',   $menuitems{$id} )          if $opts->{debug};
 
@@ -429,7 +440,6 @@ sub handle_choice {
 
     } else {
 
-        ddump( 'handle_choice_id',                           $id )                      if $opts->{debug};
         ddump( 'NOT matched dispatched table with hostinfo', $hostinfo{$id}{hostname} ) if $opts->{debug};
         ddump( 'NOT Matched dispatch table with menuitem',   $menuitems{$id} )          if $opts->{debug};
 
@@ -459,14 +469,50 @@ sub handle_choice {
 
 } # }}}
 
+# space_handler {{{
+#
+sub space_handler {
+
+    # The first argument should be the appropriate cui object.
+    #
+    my $this = shift;
+
+    ddump( 'space_handler_this', $this ) if $debug;
+
+    my $scr = $this->{-canvasscr};
+
+    # Get the selected element id.
+    #
+    $this->{-selected} = $this->{-ypos};
+
+
+    # from the object, get the actual id number of the entry.
+    #
+    my $id = $this->get;
+
+    ddump( 'space_handler_id', $id ) if $debug;
+
+    # Blank out the selection so it doesn't interfere later.
+    #
+    $this->{-selected} = undef;
+
+    screenselect($id);
+
+} # }}}
+
 # {{{ incremental_filter
 #
 sub incremental_filter {
 
     my $arg = shift;
 
-    $inc_filter .= $arg
-        if defined $arg && $arg;
+    if ( defined $arg && $arg ) {
+        if ( $arg eq 'KEY_BACKSPACE' ) {
+            chop($inc_filter);
+        } else {
+            $inc_filter .= $arg;
+        }
+    }
 
     load_menuitems($inc_filter);
 
@@ -877,6 +923,32 @@ sub screenopen {
         unless $host;
 
     my $cli = $opts->{screen} . " -t '${title}' " . $opts->{ssh} . " ${host}";
+
+    system($cli);
+
+} # }}}
+
+# {{{ screenselect
+#
+sub screenselect {
+
+    my $id = shift;
+
+    ddump( 'screenselect', $id ) if $debug;
+
+    die "screeselect param error...\n"
+        unless $id;
+
+    my $selection =
+        defined $hostinfo{$id}{hostname}
+        &&      $hostinfo{$id}{hostname}
+              ? $hostinfo{$id}{hostname}
+              : die "Corresponding hostname entry not found for: ${id}\n"
+              ;
+
+    my $cli = $opts->{screen} . " -X select ${selection}";
+
+    ddump( 'screenselect_cli', $cli ) if $debug;
 
     system($cli);
 
