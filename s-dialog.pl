@@ -104,6 +104,7 @@ my $do = {
            editcorelist       =>    sub { editfile("${HOME}/.hosts.coreservers")            },
 
            shell              =>    sub { screenlocal('shell')                              },
+           vim                =>    sub { screenlocal('vim', 'vim')                         },
            root               =>    sub { screenlocal('root', 'sudo -s')                    },
            'zypper-shell'     =>    sub { screenlocal('zypper', 'sudo zypper shell')        },
            htop               =>    sub { screenlocal('htop', 'htop')                       },
@@ -125,6 +126,7 @@ my $do = {
            storage02          =>    sub { telnetviassh( 'storage02', 'storage02' )          },
 
            remotecmd          =>    sub { remotecmd()                                       },
+           'mysql-prompt'     =>    sub { remotecmd('mysql-prompt', 'mysql-server.example.com', '/usr/bin/mysql -uroot -p ') },
 
 };
 
@@ -1070,7 +1072,12 @@ sub screenopenlist {
         next if m/\s+/;
 
 
-        if ( defined $sshindex{$_} && $sshindex{$_} ) {
+        if ( defined $do->{$_} ) {
+
+            ddump( 'screenopenlist_match_do', $_ ) if $debug;
+            $do->{$_}->();
+
+        } elsif ( defined $sshindex{$_} && $sshindex{$_} ) {
 
             my $key = $sshindex{$_};
 
@@ -1156,6 +1163,25 @@ sub telnetviassh {
                  ;
 
    my $cli = $opts->{screen} . " -t ${title}  --  " . $opts->{ssh} . " -t ${sshproxyhost}  -x telnet ${host}";
+
+   system($cli);
+
+} # }}}
+
+# {{{ remotecmd
+#
+sub remotecmd {
+
+    my $title = shift;
+    my $host  = shift;
+    my $cmd   = shift;
+
+    die "Error, missing remotecmd params...\n"
+        unless $title && $host && $cmd;
+
+   my $cli = $opts->{screen} . " -t ${title}  --  " . $opts->{ssh} . " -t ${host}  -x ${cmd}";
+
+   ddump( 'remotecmd_cli', $cli ) if $debug;
 
    system($cli);
 
