@@ -27,14 +27,12 @@
 #
 shell
 corelist
-dhcpv6
 zypper-shell
-htop
 root
-man
-perldoc
+htop
 htoproot
 toproot
+notes
 server01.example.com
 admin@server01.example.com
 server02.example.com # mail server
@@ -56,12 +54,8 @@ storage02.example.com # netapp
 root@10.24.1.101 # lab web server
 root@10.24.1.201 # lab db server
 user@servertest.example.com:2222
-vim
 editself
 editcorelist
-editdhcpv6list
-editppslist
-editsunlist
 editknownhosts
 editsshconfig
-edit
+edithosts
