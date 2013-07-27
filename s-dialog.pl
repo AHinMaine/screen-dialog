@@ -37,16 +37,17 @@ $opts->{verbose}   = 0;
 # Make the effort to find a good editor
 #
 $opts->{editor} =
-    defined $ENV{EDITOR}
-    &&      $ENV{EDITOR}
-    &&   -x $ENV{EDITOR}      ? $ENV{EDITOR}
-       : -x "${HOME}/.editor" ? "${HOME}/.editor"
-       : -x '/usr/bin/vim'    ? '/usr/bin/vim'
-       : -x '/bin/vim'        ? '/bin/vim'
-       : -x '/usr/bin/vi'     ? '/usr/bin/vi'
-       : -x '/bin/vi'         ? '/bin/vi'
-       : 'vim'
-       ;
+      defined $ENV{EDITOR} && $ENV{EDITOR} 
+      &&   -x $ENV{EDITOR} ? $ENV{EDITOR}
+    : defined $ENV{VISUAL} && $ENV{VISUAL}
+      &&   -x $ENV{VISUAL} ?  $ENV{VISUAL}
+    : -x "${HOME}/.editor" ? "${HOME}/.editor"
+    : -x '/usr/bin/vim'    ? '/usr/bin/vim'
+    : -x '/bin/vim'        ? '/bin/vim'
+    : -x '/usr/bin/vi'     ? '/usr/bin/vi'
+    : -x '/bin/vi'         ? '/bin/vi'
+    : -x '/etc/alternatives/vim' ? '/etc/alternatives/vim'
+    : 'vim';
 
 $opts->{bg}  = 'blue';
 $opts->{bbg} = 'blue';
@@ -98,7 +99,7 @@ our $hostsfile =
 # here.
 
 my $do = {
-           edit               =>    sub { editfile( $hostsfile )                            },
+           edithosts          =>    sub { editfile( $hostsfile )                            },
            editknownhosts     =>    sub { editfile("${HOME}/.ssh/known_hosts")              },
            editsshconfig      =>    sub { editfile("${HOME}/.ssh/config")                   },
            editcorelist       =>    sub { editfile("${HOME}/.hosts.coreservers")            },
@@ -118,15 +119,15 @@ my $do = {
            corelist           =>    sub { screenopenlist("${HOME}/.hosts.coreservers")      },
 
            '6shells'          =>    sub { screensource("${HOME}/.screenrc.shells")          },
-           dhcpv6             =>    sub { screensource("${HOME}/.screenrc.hosts.dhcpv6")    },
 
-           telnetviassh       =>    sub { telnetviassh()                                    },
-           telnet             =>    sub { telnet()                                          },
+           telnet             =>    sub { telnet('oldhost1')                                },
+           telnetviassh       =>    sub { telnetviassh( 'oldhost1', 'oldhost1' )            },
            storage01          =>    sub { telnetviassh( 'storage01', 'storage01' )          },
            storage02          =>    sub { telnetviassh( 'storage02', 'storage02' )          },
 
            remotecmd          =>    sub { remotecmd()                                       },
            'mysql-prompt'     =>    sub { remotecmd('mysql-prompt', 'mysql-server.example.com', '/usr/bin/mysql -uroot -p ') },
+           'watch-test'       =>    sub { remotecmd('watch-test', 'testhost', 'sudo /bin/perl /bin/watch-script.pl --loop --verbose') },
 
 };
 
@@ -511,6 +512,8 @@ sub incremental_filter {
     if ( defined $arg && $arg ) {
         if ( $arg eq 'KEY_BACKSPACE' ) {
             chop($inc_filter);
+        } elsif ( $arg eq '.' ) {
+            $inc_filter .= '[.]';
         } else {
             $inc_filter .= $arg;
         }
@@ -596,6 +599,13 @@ sub load_hosts {
 
     my $hostsfh = FileHandle->new($hosts, 'r')
         or die "Error opening hosts file: $!\n";
+
+    # Empty it out first so there's nothing stale hanging
+    # around after we repopulate...
+    #
+    if ( scalar keys %hostinfo ) {
+        map { delete $hostinfo{$_}; } keys %hostinfo;
+    }
 
     while ( <$hostsfh> ) {
 
@@ -717,7 +727,9 @@ sub load_hosts {
 
         if ( defined $hostinfo{$_}{comment} ) {
 
-            $hostinfo{$_}{title} .= ' # ' . $hostinfo{$_}{comment};
+            # Don't really like having the comment in the
+            # screen window title.
+           #$hostinfo{$_}{title} .= ' # ' . $hostinfo{$_}{comment};
 
             $hostinfo{$_}{menuitem} .= ' ' x $pad;
             $hostinfo{$_}{menuitem} .= '<bold># ' . $hostinfo{$_}{comment} . '</bold>';
@@ -741,7 +753,11 @@ sub load_menuitems {
 
     my $filter = shift;
 
-    %menuitems = ();
+    # Empty it out first so there's nothing stale hanging
+    # around after we repopulate...
+    if ( scalar keys %menuitems ) {
+        map { delete $menuitems{$_} } keys %menuitems;
+    }
 
     for ( sort { $a <=> $b } keys %hostinfo ) {
 
@@ -1334,7 +1350,7 @@ Other items that are allowed to appear in your default file containing your menu
 
 No ssh anywhere, just like the screen 'create' command.  Convenient really only if it's your first menu item.
 
-=item B<edit>
+=item B<edithosts>
 
 This will launch an editor on the menu file itself.
 
