@@ -1,11 +1,11 @@
 #!/perl/bin/perl
 #===============================================================================
 #
-#         File: s-dialog.pl
+#         File: aws-hosts-update.pl
 #
-#        Usage: s-dialog.pl
+#        Usage: aws-hosts-update.pl
 #
-#  Description:
+#  Description: Fetch hosts from AWS and build an s-dialog compatible hosts file.
 #
 #       Author: Andy Harrison <domain=gmail,tld=com,uid=aharrison>
 #      VERSION: 1.0
@@ -35,11 +35,8 @@ our $opts = LoadFile( $ENV{HOME} . '/.s.conf' );
 $opts->{debug}     = 0;
 $opts->{verbose}   = 0;
 
-$opts->{bg}  = 'blue';
-$opts->{bbg} = 'blue';
-$opts->{bfg} = 'green';
-
-$opts->{use_aws} = 1;
+# List of the tags we actually care about
+#
 $opts->{tags} = [ 'Environment', 'Purpose', 'Name', 'Cost Center', 'aws:cloudformation:stack-name' ];
 
 my $key_aliases = {
@@ -52,15 +49,7 @@ GetOptions(
     $opts,
         'debug!',
         'verbose!',
-        'screen=s',
-        'editor=s',
-        'ssh=s',
-        'bbg=s',
-        'bfg=s',
-        'bg=s',
-        'hostsfile=s',
         'awshostsfile=s',
-        'use_aws!',
 );
 
 our $debug = $opts->{debug};
@@ -248,151 +237,9 @@ __END__
 
 =pod
 
-=head1 NAME
-
-s-dialog - Dialog for launching GNU screen sessions
-
-=head1 SCRIPT CATEGORIES
-
-Unix/System_administration
-
-=head1 README
-
-Provides a dialog box for launching new screen windows primarily focused
-ssh sessions connecting to many hosts.  It's intended to be executed with
-little to no commandline options.  It will simply stay running in your screen
-window 0 all the time, so just switch to screen 0 to get back to this dialog screen.
-
-=head1 OSNAMES
-
-any
-
-=head1 PREREQUISITES
-
- Curses::UI
- Curses
- YAML::Any
-
-=head1 SYNOPSIS
-
-=head2 OPTIONS AND ARGUMENTS
-
-OPTIONS
-
-=over 15
-
-=item B<--hostsfile> I<filename>
-
-The filename from which to read all the hosts so that we can build our menu.
-
-=item B<--screen> I<filename>
-
-Specify an screen binary. (default: /usr/bin/screen)
-
-=item B<--editor> I<filename>
-
-Specify an alternate editor. (default: $EDITOR, vim, or vi)
-
-=back
-
-SHORTCUTS
-
-When the main menu is showing, here are the default key bindings:
-
-=over 15
-
-=item B<F9> | B<F10>
-
-Bring up the file menu.
-
-=item B</>
-
-Add a filter to list of hosts so that only certain ones are showing.  Enter a blank filter to return to displaying the entire list.  Valid perl regex allowed.
-
-=item B<CTRL-L>
-
-Clear any filters and refresh the screen.
-
-=item B<CTRL-R>
-
-Clear any filters, re-read the hostsfile, and refresh the screen.
-
-=item B<CTRL-Q>
-
-Quit
-
-=item B<a-z0-9>
-
-Starts filtering the list in real time.  (CTRL-L will clear the filter).
-
-=back
-
-=head1 CONFIGURATION
-
-The primary configuration containing hostnames (and other menuitems) can look like this:
-
- server1.example.com
- jsmith@server2.example.com
- oper@server2.example.com
- server3.example.com # the backup web server
- admin@server4.example.com:2022
- # comments will be skipped
-
-(The order of items in this file will be preserved.)
-
-Additionally, the file ~/.hosts.coreservers can be populated with items to be passed directly to ssh, so that you can open up sessions on a large number of servers all at once.
-
-There is a sleep time of 1 second in between spawning because if you're in an environment where you use nfs mounted home directories on your servers, lighting up all those sessions at once will cause xauth to have a fit.
-
-Other items that are allowed to appear in your default file containing your menuitems:
-
-=over 15
-
-=item B<shell>
-
-No ssh anywhere, just like the screen 'create' command.  Convenient really only if it's your first menu item.
-
-=item B<edithosts>
-
-This will launch an editor on the menu file itself.
-
-=item B<editknownhosts>
-
-Edit your ~/.ssh/known_hosts file
-
-=item B<editsshconfig>
-
-Edit your ~/.ssh/config file
-
-=item B<editcorelist>
-
-Edit your ~/.hosts.coreservers file.
-
-=item B<zypper-shell>
-
-Launch a zypper shell, for if you're an openSUSE user.
-
-=item B<man>
-
-It will ask for the name of a man page and then display it in a separate screen window.
-
-=back
-
-=head1 TODO
-
-=over 15
-
-=item write more docs
-
-=item fix ugly menuitems, values, and hostinfo globals.
-
-=item try to work around the shortcomings of Curses::UI so this can have more visual appeal.
-
-=back
-
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2012 Andy Harrison
+Copyright (c) 2014 Andy Harrison
 
 You can redistribute and modify this work under the conditions of the GPL.
 
