@@ -83,6 +83,13 @@ our $hostsfile =
              ? $ENV{HOME} . '.hosts'
              : die "Error: can't find a readable hosts file!\n";
 
+our $awshostsfile =
+    defined $opts->{awshostsfile}
+    &&      $opts->{awshostsfile}
+    &&   -e $opts->{awshostsfile} && -r _
+          ? $opts->{awshostsfile}
+          : ''
+          ;
 # }}}
 
 # {{{ dispatch table
@@ -112,6 +119,7 @@ my $do = {
            htoproot           =>    sub { screenlocal('htop', 'sudo htop')                  },
            toproot            =>    sub { screenlocal('top',  'sudo top')                   },
            notes              =>    sub { screenlocal('notes-gpg', 'notes.sh' )             },
+           'aws-refresh'      =>    sub { screenlocal('aws-refresh', 'aws-hosts-update.pl') },
 
            man                =>    sub { manpage()                                         },
            perldoc            =>    sub { perldoc()                                         },
@@ -141,6 +149,10 @@ our %hostinfo;
 our %sshindex;
 
 load_hosts({ hosts => $hostsfile });
+
+if ( $awshostsfile ) {
+    load_hosts({ hosts => $awshostsfile, add => 1 });
+}
 
 
 # booooo...  fix this you lazy turd.
@@ -278,7 +290,12 @@ $cui->set_binding( sub { $inc_filter = '';  load_menuitems(); $cui->layout() }, 
 $cui->set_binding(
     sub {
         $inc_filter = '';
+
         load_hosts({ hosts => $hostsfile });
+        if ( $awshostsfile ) {
+            load_hosts({ hosts => $awshostsfile, add => 1 });
+        }
+
         load_menuitems();
         $cui->layout();
     },
@@ -589,6 +606,12 @@ sub load_hosts {
               : die "hosts file not found, empty, or not readable.\n"
               ;
 
+    my $adding =
+        defined $args->{add}
+        &&      $args->{add}
+              ? 1
+              : 0
+              ;
 
     # We're going to build the hash of host info using a
     # numeric key so that we can preserve the current order
@@ -603,8 +626,12 @@ sub load_hosts {
     # Empty it out first so there's nothing stale hanging
     # around after we repopulate...
     #
-    if ( scalar keys %hostinfo ) {
+    if ( ! $adding && scalar keys %hostinfo ) {
         map { delete $hostinfo{$_}; } keys %hostinfo;
+    }
+
+    if ( $adding ) {
+        $key = max_array(keys %hostinfo);
     }
 
     while ( <$hostsfh> ) {
@@ -883,6 +910,23 @@ sub max {
         : $b;
 
 } # }}}
+
+sub max_array {
+    return unless @_;
+
+    my $max = $_[0];
+
+    for ( my $i = 1; $i < @_; $i += 2 ) {
+        if ( $_[ $i - 1 ] <= $_[$i] ) {
+            $max = $_[$i] if $max < $_[$i];
+        } else {
+            $max = $_[ $i - 1 ] if $max < $_[ $i - 1 ];
+        }
+    }
+
+    return $max;
+
+}
 
 # {{{ DISPATCH TABLE FUNCTIONS
 #
