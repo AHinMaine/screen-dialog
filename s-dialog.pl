@@ -38,7 +38,7 @@ $opts->{verbose}   = 0;
 #
 $opts->{editor} =
       defined $ENV{EDITOR} && $ENV{EDITOR} 
-      &&   -x $ENV{EDITOR} ? $ENV{EDITOR}
+      &&   -x $ENV{EDITOR} ?  $ENV{EDITOR}
     : defined $ENV{VISUAL} && $ENV{VISUAL}
       &&   -x $ENV{VISUAL} ?  $ENV{VISUAL}
     : -x "${HOME}/.editor" ? "${HOME}/.editor"
@@ -279,6 +279,7 @@ $cui->set_binding( sub { incremental_filter('8') }, '8' );
 $cui->set_binding( sub { incremental_filter('9') }, '9' );
 $cui->set_binding( sub { incremental_filter('-') }, '-' );
 $cui->set_binding( sub { incremental_filter('.') }, '.' );
+$cui->set_binding( sub { incremental_filter('=') }, '=' );
 
 $cui->set_binding( sub { incremental_filter('KEY_BACKSPACE') }, KEY_BACKSPACE );
 
