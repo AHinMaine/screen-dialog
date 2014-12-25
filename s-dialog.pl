@@ -110,6 +110,7 @@ my $do = {
            editknownhosts     =>    sub { editfile("${HOME}/.ssh/known_hosts")              },
            editsshconfig      =>    sub { editfile("${HOME}/.ssh/config")                   },
            editcorelist       =>    sub { editfile("${HOME}/.hosts.coreservers")            },
+           editself           =>    sub { editfile("${HOME}/bin/s-dialog.pl")               },
 
            shell              =>    sub { screenlocal('shell')                              },
            vim                =>    sub { screenlocal('vim', 'vim')                         },
@@ -119,7 +120,8 @@ my $do = {
            htoproot           =>    sub { screenlocal('htop', 'sudo htop')                  },
            toproot            =>    sub { screenlocal('top',  'sudo top')                   },
            notes              =>    sub { screenlocal('notes-gpg', 'notes.sh' )             },
-           'aws-refresh'      =>    sub { screenlocal('aws-refresh', 'aws-hosts-update.pl') },
+           'aws-refresh'      =>    sub { screenlocal('aws-refresh', 'perl -S aws-hosts-update.pl') },
+           'aws-rb'           =>    sub { screenlocal('aws-rb', 'aws-rb')                   },
 
            man                =>    sub { manpage()                                         },
            perldoc            =>    sub { perldoc()                                         },
@@ -278,8 +280,8 @@ $cui->set_binding( sub { incremental_filter('7') }, '7' );
 $cui->set_binding( sub { incremental_filter('8') }, '8' );
 $cui->set_binding( sub { incremental_filter('9') }, '9' );
 $cui->set_binding( sub { incremental_filter('-') }, '-' );
-$cui->set_binding( sub { incremental_filter('.') }, '.' );
 $cui->set_binding( sub { incremental_filter('=') }, '=' );
+$cui->set_binding( sub { incremental_filter('.') }, '.' );
 
 $cui->set_binding( sub { incremental_filter('KEY_BACKSPACE') }, KEY_BACKSPACE );
 
@@ -532,6 +534,8 @@ sub incremental_filter {
             chop($inc_filter);
         } elsif ( $arg eq '.' ) {
             $inc_filter .= '[.]';
+        } elsif ( $arg eq '=' ) {
+            $inc_filter .= '[=]';
         } else {
             $inc_filter .= $arg;
         }
@@ -648,6 +652,7 @@ sub load_hosts {
         my $ssh;
         my $port;
         my $comment;
+        my $host_label;
 
         my $listmatch = $_;
 
@@ -680,9 +685,17 @@ sub load_hosts {
         s/\s+$//;
         $hostname = $_;
 
-        $hostinfo{$key}{hostname} = $hostname;
+        if ( defined $comment && $comment =~ m/\bname\s*=\s*(\S+)\s*.*$/i ) {
+            $host_label = $1;
+        }
 
-        my $len = length $hostname;
+        $hostinfo{$key}{hostname} = $host_label ? $host_label : $hostname;
+
+        my $len = 
+              $host_label 
+            ? length $host_label
+            : length $hostname
+            ;
 
         if ($username) {
             $hostinfo{$key}{user} = $username;
